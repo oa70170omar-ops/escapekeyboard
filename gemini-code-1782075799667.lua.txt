@@ -1,0 +1,212 @@
+-- ====================================================================
+-- TRUE REWARD WINNER: +1 SPEED KEYBOARD ESCAPE (DELTA LUA)
+-- ====================================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- State Control
+local autoWinActive = false
+
+-- Targets the absolute reward pad/badge trigger at the very end
+local function findTrueRewardPad()
+    -- 1. Look specifically for reward/win items inside the workspace
+    -- These are the pads that actually give you Trophies/Wins upon contact
+    local rewardKeywords = {"Rebirth", "WinPad", "Reward", "TrophyPad", "Collect", "Give", "Badge"}
+    
+    for i = 1, #rewardKeywords do
+        local keyword = rewardKeywords[i]
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and string.find(string.lower(obj.Name), string.lower(keyword)) then
+                -- Ignore map boundaries or anti-cheats
+                if not string.find(string.lower(obj.Name), "kill") and not string.find(string.lower(obj.Name), "barrier") then
+                    return obj
+                end
+            end
+        end
+    end
+
+    -- 2. Fallback: Find the part furthest away from spawn that has a TouchTransmitter (a script trigger)
+    local bestPart = nil
+    local maxDistance = -1
+    local originPoint = Vector3.new(0, 0, 0)
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj:FindFirstChildOfClass("TouchTransmitter") then
+            -- Make sure it's not a trap or a player accessory
+            if not obj.Parent:FindFirstChild("Humanoid") and not string.find(string.lower(obj.Name), "kill") then
+                local dist = (obj.Position - originPoint).Magnitude
+                if dist > maxDistance then
+                    maxDistance = dist
+                    bestPart = obj
+                end
+            end
+        end
+    end
+
+    return bestPart
+end
+
+local function teleportToFinish()
+    local targetPart = findTrueRewardPad()
+    if targetPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        -- Cancel physical momentum so you don't overshoot the pad
+        player.Character.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
+        -- Snap directly onto the center of the reward platform
+        player.Character.HumanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 2, 0)
+    end
+end
+
+-- Fast Auto-Win loop 
+coroutine.wrap(function()
+    while true do
+        task.wait(0.1) -- Fast snapping loop so it collects rewards instantly
+        if autoWinActive then 
+            teleportToFinish() 
+        end
+    end
+end)()
+
+player.CharacterAdded:Connect(function(newCharacter) 
+    character = newCharacter 
+end)
+
+----------------------------------------------------------------
+-- INTERFACE DESIGN
+----------------------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NeonEscapeHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 210, 0, 200) 
+MainFrame.Position = UDim2.new(0.15, 0, 0.35, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20) 
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 2
+MainStroke.Color = Color3.fromRGB(0, 235, 255) 
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = MainFrame
+
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundTransparency = 1
+Header.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🏆 TRUE WIN HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.GothamBold
+Title.Parent = Header
+
+local Line = Instance.new("Frame")
+Line.Size = UDim2.new(0.85, 0, 0, 1)
+Line.Position = UDim2.new(0.075, 0, 1, -2)
+Line.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+Line.BorderSizePixel = 0
+Line.Parent = Header
+
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Name = "MenuScroller"
+ScrollingFrame.Size = UDim2.new(1, 0, 1, -45)
+ScrollingFrame.Position = UDim2.new(0, 0, 0, 45)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.ScrollBarThickness = 3
+ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 235, 255)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 160) 
+ScrollingFrame.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.Parent = ScrollingFrame
+
+local TpFsButton = Instance.new("TextButton")
+TpFsButton.Name = "TpFsButton"
+TpFsButton.Size = UDim2.new(0.85, 0, 0, 45)
+TpFsButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35) 
+TpFsButton.Text = "INSTANT WIN TP"
+TpFsButton.TextColor3 = Color3.fromRGB(0, 235, 255) 
+TpFsButton.TextSize = 12
+TpFsButton.Font = Enum.Font.GothamBold
+TpFsButton.LayoutOrder = 1
+TpFsButton.Parent = ScrollingFrame
+
+local BtnCorner1 = Instance.new("UICorner")
+BtnCorner1.CornerRadius = UDim.new(0, 10)
+BtnCorner1.Parent = TpFsButton
+
+local BtnStroke1 = Instance.new("UIStroke")
+BtnStroke1.Thickness = 1
+BtnStroke1.Color = Color3.fromRGB(0, 235, 255)
+BtnStroke1.Parent = TpFsButton
+
+local AutoWinButton = Instance.new("TextButton")
+AutoWinButton.Name = "AutoWinButton"
+AutoWinButton.Size = UDim2.new(0.85, 0, 0, 45)
+AutoWinButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+AutoWinButton.Text = "AUTO WIN: OFF"
+AutoWinButton.TextColor3 = Color3.fromRGB(255, 60, 100) 
+AutoWinButton.TextSize = 12
+AutoWinButton.Font = Enum.Font.GothamBold
+AutoWinButton.LayoutOrder = 2
+AutoWinButton.Parent = ScrollingFrame
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 10)
+BtnCorner2.Parent = AutoWinButton
+
+local BtnStroke2 = Instance.new("UIStroke")
+BtnStroke2.Thickness = 1
+BtnStroke2.Color = Color3.fromRGB(255, 60, 100)
+BtnStroke2.Parent = AutoWinButton
+
+----------------------------------------------------------------
+-- BUTTON EVENT LOGIC
+----------------------------------------------------------------
+
+TpFsButton.MouseButton1Click:Connect(function()
+    teleportToFinish()
+    TpFsButton.BackgroundColor3 = Color3.fromRGB(0, 235, 255)
+    TpFsButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+    wait(0.05)
+    TweenService:Create(TpFsButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 35), TextColor3 = Color3.fromRGB(0, 235, 255)}):Play()
+end)
+
+AutoWinButton.MouseButton1Click:Connect(function()
+    autoWinActive = not autoWinActive
+    if autoWinActive then
+        AutoWinButton.Text = "AUTO WIN: ACTIVE"
+        AutoWinButton.TextColor3 = Color3.fromRGB(50, 255, 130) 
+        BtnStroke2.Color = Color3.fromRGB(50, 255, 130)
+        MainStroke.Color = Color3.fromRGB(50, 255, 130)
+        ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(50, 255, 130)
+    else
+        AutoWinButton.Text = "AUTO WIN: OFF"
+        AutoWinButton.TextColor3 = Color3.fromRGB(255, 60, 100) 
+        BtnStroke2.Color = Color3.fromRGB(255, 60, 100)
+        MainStroke.Color = Color3.fromRGB(0, 235, 255)
+        ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 235, 255)
+    end
+end)
