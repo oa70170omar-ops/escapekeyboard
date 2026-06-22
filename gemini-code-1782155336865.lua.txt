@@ -1,0 +1,229 @@
+-- ====================================================================
+-- WIN AREA TARGETER - BYPASSES MAZE (DELTA LUA)
+-- ====================================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- State Control
+local autoWinActive = false
+
+local function findTrueWinArea()
+    local bestPart = nil
+    local maxDistance = 250 -- Ignore the spawn area entirely
+    local centerPoint = Vector3.new(0, 0, 0)
+    
+    -- Specific priority words used for the reward zone
+    local winKeywords = {"win", "reward", "trophy", "badge", "finish", "victory", "endpad"}
+    
+    -- 1. Try to find an explicit win keyword part that is far from spawn
+    local allItems = workspace:GetDescendants()
+    for i = 1, #allItems do
+        local item = allItems[i]
+        if item:IsA("BasePart") and not item.Parent:IsA("Accessory") and not item.Parent:FindFirstChild("Humanoid") then
+            local lowerName = string.lower(item.Name)
+            
+            -- Check if it matches our win keywords
+            local isWinPart = false
+            for k = 1, #winKeywords do
+                if string.find(lowerName, winKeywords[k]) then
+                    isWinPart = true
+                    break
+                end
+            end
+            
+            if isWinPart then
+                local dist = (Vector3.new(item.Position.X, 0, item.Position.Z) - centerPoint).Magnitude
+                if dist > maxDistance then
+                    -- If we find an explicit win pad far away, use it immediately!
+                    return item
+                end
+            end
+        end
+    end
+    
+    -- 2. Fallback: If keywords fail, find the part with a touch script trigger furthest past the maze
+    local absoluteFurthestTouch = nil
+    local furthestDist = maxDistance
+    
+    for i = 1, #allItems do
+        local item = allItems[i]
+        if item:IsA("BasePart") and item:FindFirstChildOfClass("TouchTransmitter") then
+            if not item.Parent:FindFirstChild("Humanoid") and not string.find(string.lower(item.Name), "kill") then
+                local dist = (Vector3.new(item.Position.X, 0, item.Position.Z) - centerPoint).Magnitude
+                if dist > furthestDist then
+                    -- Make sure it's not a generic maze wall part named "Part"
+                    if item.Name ~= "Part" and item.Name ~= "Wall" then
+                        furthestDist = dist
+                        absoluteFurthestTouch = item
+                    end
+                end
+            end
+        end
+    end
+    
+    return absoluteFurthestTouch
+end
+
+local function teleportToFinish()
+    local targetPart = findTrueWinArea()
+    if targetPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        -- Instant frame-perfect snap straight onto the win area
+        player.Character.HumanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+    end
+end
+
+-- Fast Loop Execution
+coroutine.wrap(function()
+    while true do
+        task.wait(0.1)
+        if autoWinActive then 
+            teleportToFinish() 
+        end
+    end
+end)()
+
+player.CharacterAdded:Connect(function(newCharacter) 
+    character = newCharacter 
+end)
+
+----------------------------------------------------------------
+-- INTERFACE DESIGN
+----------------------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NeonEscapeHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 210, 0, 200) 
+MainFrame.Position = UDim2.new(0.15, 0, 0.35, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20) 
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 2
+MainStroke.Color = Color3.fromRGB(0, 235, 255) 
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = MainFrame
+
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundTransparency = 1
+Header.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🏆 TRUE WIN EXTRACTOR"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 13
+Title.Font = Enum.Font.GothamBold
+Title.Parent = Header
+
+local Line = Instance.new("Frame")
+Line.Size = UDim2.new(0.85, 0, 0, 1)
+Line.Position = UDim2.new(0.075, 0, 1, -2)
+Line.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+Line.BorderSizePixel = 0
+Line.Parent = Header
+
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Name = "MenuScroller"
+ScrollingFrame.Size = UDim2.new(1, 0, 1, -45)
+ScrollingFrame.Position = UDim2.new(0, 0, 0, 45)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.ScrollBarThickness = 3
+ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 235, 255)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 160) 
+ScrollingFrame.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.Parent = ScrollingFrame
+
+local TpFsButton = Instance.new("TextButton")
+TpFsButton.Name = "TpFsButton"
+TpFsButton.Size = UDim2.new(0.85, 0, 0, 45)
+TpFsButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35) 
+TpFsButton.Text = "TELEPORT TO WIN PAD"
+TpFsButton.TextColor3 = Color3.fromRGB(0, 235, 255) 
+TpFsButton.TextSize = 11
+TpFsButton.Font = Enum.Font.GothamBold
+TpFsButton.LayoutOrder = 1
+TpFsButton.Parent = ScrollingFrame
+
+local BtnCorner1 = Instance.new("UICorner")
+BtnCorner1.CornerRadius = UDim.new(0, 10)
+BtnCorner1.Parent = TpFsButton
+
+local BtnStroke1 = Instance.new("UIStroke")
+BtnStroke1.Thickness = 1
+BtnStroke1.Color = Color3.fromRGB(0, 235, 255)
+BtnStroke1.Parent = TpFsButton
+
+local AutoWinButton = Instance.new("TextButton")
+AutoWinButton.Name = "AutoWinButton"
+AutoWinButton.Size = UDim2.new(0.85, 0, 0, 45)
+AutoWinButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+AutoWinButton.Text = "AUTO WIN: OFF"
+AutoWinButton.TextColor3 = Color3.fromRGB(255, 60, 100) 
+AutoWinButton.TextSize = 12
+AutoWinButton.Font = Enum.Font.GothamBold
+AutoWinButton.LayoutOrder = 2
+AutoWinButton.Parent = ScrollingFrame
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 10)
+BtnCorner2.Parent = AutoWinButton
+
+local BtnStroke2 = Instance.new("UIStroke")
+BtnStroke2.Thickness = 1
+BtnStroke2.Color = Color3.fromRGB(255, 60, 100)
+BtnStroke2.Parent = AutoWinButton
+
+----------------------------------------------------------------
+-- RUN CONTROLS
+----------------------------------------------------------------
+
+TpFsButton.MouseButton1Click:Connect(function()
+    teleportToFinish()
+    TpFsButton.BackgroundColor3 = Color3.fromRGB(0, 235, 255)
+    TpFsButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+    wait(0.05)
+    TweenService:Create(TpFsButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 35), TextColor3 = Color3.fromRGB(0, 235, 255)}):Play()
+end)
+
+AutoWinButton.MouseButton1Click:Connect(function()
+    autoWinActive = not autoWinActive
+    if autoWinActive then
+        AutoWinButton.Text = "AUTO WIN: ACTIVE"
+        AutoWinButton.TextColor3 = Color3.fromRGB(50, 255, 130) 
+        BtnStroke2.Color = Color3.fromRGB(50, 255, 130)
+        MainStroke.Color = Color3.fromRGB(50, 255, 130)
+        ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(50, 255, 130)
+    else
+        AutoWinButton.Text = "AUTO WIN: OFF"
+        AutoWinButton.TextColor3 = Color3.fromRGB(255, 60, 100) 
+        BtnStroke2.Color = Color3.fromRGB(255, 60, 100)
+        MainStroke.Color = Color3.fromRGB(0, 235, 255)
+        ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 235, 255)
+    end
+end)
